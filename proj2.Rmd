@@ -1,0 +1,110 @@
+Step 1. Understanding the Business Problem
+The company wants to know:
+
+Does the new webpage improve conversion rate?
+
+This is called A/B Testing.
+
+Two versions:
+
+Version A — Control
+
+Existing webpage.
+
+Version B — Treatment
+
+New webpage.
+
+Goal:
+
+Compare:
+
+P(conversion | old page)
+
+vs
+
+P(conversion | new page)
+
+If:
+
+New > Old
+
+→ launch new page.
+
+Otherwise:
+
+→ keep old page.
+```{r}
+data <- read.csv("C:/Users/jaina/Downloads/ab_data1.csv")
+data
+```
+```{r}
+str(data)
+```
+
+
+```{r}
+dim(data)
+```
+
+
+```{r}
+colSums(is.na(data))
+```
+```{r}
+sum(duplicated(data))
+```
+
+
+
+```{r}
+table(data$group)
+```
+```{r}
+table(data$landing_page)
+```
+
+
+```{r}
+table(data$converted)
+```
+
+
+```{r}
+mean(data$converted)
+```
+
+
+```{r}
+table(data$group,data$converted)
+```
+```{r}
+prop.table(table(data$group,data$converted),1)
+```
+
+
+```{r}
+library(ggplot2)
+ggplot(data,aes(group))+
+geom_bar(fill="steelblue")+
+labs(
+title="Users per Experimental Group",
+x="Group",
+y="Count"
+)
+```
+After EDA ask:
+
+Q1
+
+Were groups balanced?
+
+Check:
+
+group counts
+landing page counts
+
+
+```{r}
+```
+
