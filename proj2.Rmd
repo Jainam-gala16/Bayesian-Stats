@@ -115,6 +115,129 @@ data <- data %>% filter(match == TRUE)
 
 ```
 
+Performing Hypothesis testing where the new page is resonable or not .
+Null Hypothesis
+
+New page does not improve conversions.
+
+Alternative Hypothesis
+
+New page performs better.
+
+```{r}
+control <- subset(data_clean,
+group=="control")
+
+treatment <- subset(data_clean,
+group=="treatment")
+```
+
+
+```{r}
+x1 <- sum(control$converted)
+n1 <- nrow(control)
+
+x2 <- sum(treatment$converted)
+n2 <- nrow(treatment)
+```
+
+
+```{r}
+prop.test(
+c(x1,x2),
+c(n1,n2),
+alternative="less"
+)
+```
+```{r}
+prop.test(
+c(x1,x2),
+c(n1,n2),
+alternative="two.sided"
+)
+```
+After cleaning inconsistent observations and duplicate users, a two-sample proportion test was conducted to compare conversion rates between the control and treatment groups. The control group showed a conversion rate of 12.04%, while the treatment group showed 11.88%. The hypothesis test produced a p-value of 0.9042, which is substantially larger than α = 0.05. Therefore, we fail to reject the null hypothesis and conclude that there is insufficient evidence that the new webpage increases conversion rates. Based on the observed data, the old webpage performed slightly better.Therefore, we fail to reject the null hypothesis and conclude that there is insufficient evidence that the webpages differ in conversion performance.
+
+que2
+
+Testing via bayesian stat .
+
+```{r}
+alpha_old <- 2
+beta_old <- 20
+
+alpha_new <- 1
+beta_new <- 1
+
+```
+
+
+```{r}
+
+control <- subset(data_clean,
+                  group=="control")
+
+treatment <- subset(data_clean,
+                    group=="treatment")
+```
+
+
+```{r}
+x_old <- sum(control$converted)
+n_old <- nrow(control)
+
+x_new <- sum(treatment$converted)
+n_new <- nrow(treatment)
+
+```
+```{r}
+```
+
+
+```{r}
+post_alpha_old <- alpha_old+x_old
+post_beta_old <- beta_old+n_old-x_old
+
+post_alpha_new <- alpha_new+x_new
+post_beta_new <- beta_new+n_new-x_new
+```
+
+
+```{r}
+N <- 100000
+
+samples_old <- rbeta(
+N,
+post_alpha_old,
+post_beta_old)
+```
+
+
+```{r}
+samples_new <- rbeta(
+N,
+post_alpha_new,
+post_beta_new)
+```
+```{r}
+```
+
+
+```{r}
+mean(samples_new>samples_old)
+```
+
+
+```{r}
+quantile(samples_old,
+         c(.025,.975))
+
+quantile(samples_new,
+         c(.025,.975))
+```
+A Bayesian A/B analysis was conducted using independent Beta priors for the conversion rates. A Beta(2,20) prior was specified for the old page based on historical observations, while a weak prior was used for the new page. Posterior distributions were updated using the observed conversion data. The posterior probability that the new page outperforms the old page was estimated as 0.095, indicating only a 9.5% chance that the new webpage achieves a higher conversion rate. The 95% posterior credible interval for the old page was (0.1187, 0.1221), while the interval for the new page was (0.1172, 0.1205). Overall, the Bayesian analysis provides little evidence supporting adoption of the new webpage, and the old page appears more favorable.
+
+
 
 Basic AB Testing (Old Page)
 
