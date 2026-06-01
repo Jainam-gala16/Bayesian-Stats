@@ -104,7 +104,45 @@ Check:
 group counts
 landing page counts
 
+We will filter the data based on matching control and treatment groups
 
 ```{r}
+
+data <- data %>% mutate(match = (group == "treatment" & landing_page == "new_page") |
+                       (group == "control" & landing_page == "old_page"))
+
+data <- data %>% filter(match == TRUE)
+
 ```
 
+
+Basic AB Testing (Old Page)
+
+```{r}
+
+old_page <- data %>% filter(group == "control")
+new_page <- data %>% filter(group == "treatment")
+
+alpha = 2
+beta = 20
+
+alpha_post <- alpha + sum(old_page$converted)
+beta_post <- beta + length(old_page$converted) - sum(old_page$converted)
+
+alpha_post / (alpha_post + beta_post)
+
+
+```
+
+
+New Page
+
+
+```{r}
+
+alpha_post <- alpha + sum(new_page$converted)
+beta_post <- beta + length(new_page$converted) - sum(new_page$converted)
+
+alpha_post / (alpha_post + beta_post)
+
+```
