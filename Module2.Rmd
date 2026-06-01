@@ -1,0 +1,282 @@
+Step 1. Understanding the Business Problem
+The company wants to know:
+
+Does the new webpage improve conversion rate?
+
+This is called A/B Testing.
+
+Two versions:
+
+Version A — Control
+
+Existing webpage.
+
+Version B — Treatment
+
+New webpage.
+
+Goal:
+
+Compare:
+
+P(conversion | old page)
+
+vs
+
+P(conversion | new page)
+
+If:
+
+New > Old
+
+→ launch new page.
+
+Otherwise:
+
+→ keep old page.
+```{r}
+#data <- read.csv("C:/Users/jaina/Downloads/ab_data1.csv")
+data = read.csv("~/Downloads/ab_data1.csv")
+data2 = read.csv ("~/Downloads/mimic3d1.csv")
+data
+```
+```{r}
+str(data)
+```
+
+
+```{r}
+dim(data)
+```
+
+
+```{r}
+colSums(is.na(data))
+```
+```{r}
+sum(duplicated(data))
+```
+
+
+
+```{r}
+table(data$group)
+```
+```{r}
+table(data$landing_page)
+```
+
+
+```{r}
+table(data$converted)
+```
+
+
+```{r}
+mean(data$converted)
+```
+
+
+```{r}
+table(data$group,data$converted)
+```
+```{r}
+prop.table(table(data$group,data$converted),1)
+```
+
+
+```{r}
+library(ggplot2)
+ggplot(data,aes(group))+
+geom_bar(fill="steelblue")+
+labs(
+title="Users per Experimental Group",
+x="Group",
+y="Count"
+)
+```
+After EDA ask:
+
+Q1
+
+Were groups balanced?
+
+Check:
+
+group counts
+landing page counts
+
+
+```{r}
+
+# removing the weird observations
+table(data$group, data$landing_page)
+
+inconsistent <- subset(data, (group == "control" & landing_page == "new_page") |
+                             (group == "treatment" & landing_page == "old_page"))
+nrow(inconsistent)
+data_clean <- subset(data, (group == "control" & landing_page == "old_page") |
+                           (group == "treatment" & landing_page == "new_page"))
+nrow(data_clean)
+
+#
+conv_rate <- prop.table(table(data_clean$group, data_clean$converted), 1)
+conv_df <- as.data.frame(conv_rate)
+conv_df <- conv_df[conv_df$Var2 == 1, ]
+
+ggplot(conv_df, aes(x = Var1, y = Freq, fill = Var1)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Conversion Rate by Group (Clean Data)",
+       x = "Group", y = "Conversion Rate") +
+  scale_y_continuous(labels = scales::percent) +
+  theme(legend.position = "none")
+
+#The new page shows a slightly lower conversion rate (11.The new page shows a slightly lower conversion rate (11.9%) compared to the old page (12.0%). The difference is minimal and requires a proper Bayesian test to determine whether it is statistically meaningful.
+
+```
+```{r}
+#Q2
+# Success and failures per group
+ctrl_successes <- sum(data_clean$converted[data_clean$group == "control"])
+ctrl_failures  <- sum(1 - data_clean$converted[data_clean$group == "control"])
+
+trt_successes <- sum(data_clean$converted[data_clean$group == "treatment"])
+trt_failures  <- sum(1 - data_clean$converted[data_clean$group == "treatment"])
+
+# Vérifier
+ctrl_successes
+ctrl_failures
+trt_successes
+trt_failures
+
+# Prior
+alpha_prior <- 2
+beta_prior  <- 20
+
+# Posteriors
+alpha_ctrl <- alpha_prior + ctrl_successes
+beta_ctrl  <- beta_prior  + ctrl_failures
+
+alpha_trt  <- alpha_prior + trt_successes
+beta_trt   <- beta_prior  + trt_failures
+
+# Moyennes postérieures
+alpha_ctrl / (alpha_ctrl + beta_ctrl)
+alpha_trt  / (alpha_trt  + beta_trt)
+
+
+x <- seq(0.08, 0.16, length.out = 1000)
+
+prior_density <- dbeta(x, alpha_prior, beta_prior)
+ctrl_density  <- dbeta(x, alpha_ctrl, beta_ctrl)
+trt_density   <- dbeta(x, alpha_trt, beta_trt)
+
+plot(x, ctrl_density, type = "l", col = "steelblue", lwd = 2,
+     main = "Prior vs Posteriors",
+     xlab = "Conversion Rate", ylab = "Density")
+lines(x, trt_density, col = "tomato", lwd = 2)
+lines(x, prior_density * max(ctrl_density) / max(prior_density), 
+      col = "gray", lwd = 1.5, lty = 2)
+legend("topright", 
+       legend = c("Control posterior", "Treatment posterior", "Prior (scaled)"),
+       col = c("steelblue", "tomato", "gray"), 
+       lwd = 2, lty = c(1, 1, 2))
+
+# The two posteriors are very narrow and nearly identical (~12%), showing high certainty from the large sample size. The prior is completely overwhelmed by the data and has no meaningful influence. The slight separation suggests the control page marginally outperforms the treatment
+
+
+
+
+```
+```{r}
+#Question 3
+# Subset 100 observations
+set.seed(123)
+ctrl_100  <- data_clean[data_clean$group == "control", ][1:100, ]
+trt_100   <- data_clean[data_clean$group == "treatment", ][1:100, ]
+
+# Success/ failures
+ctrl_s <- sum(ctrl_100$converted)
+ctrl_f <- 100 - ctrl_s
+trt_s  <- sum(trt_100$converted)
+trt_f  <- 100 - trt_s
+
+# Posteriors avec n=100
+alpha_ctrl_100 <- alpha_prior + ctrl_s
+beta_ctrl_100  <- beta_prior  + ctrl_f
+alpha_trt_100  <- alpha_prior + trt_s
+beta_trt_100   <- beta_prior  + trt_f
+
+# Monte Carlo : P(new > old)
+set.seed(123)
+N <- 100000
+samples_ctrl <- rbeta(N, alpha_ctrl_100, beta_ctrl_100)
+samples_trt  <- rbeta(N, alpha_trt_100,  beta_trt_100)
+prob_new_better <- mean(samples_trt > samples_ctrl)
+prob_new_better
+
+
+# different values of n
+set.seed(123)
+ns <- seq(100, 5000, by = 100)
+probs <- c()
+
+ctrl_data <- data_clean[data_clean$group == "control", ]
+trt_data  <- data_clean[data_clean$group == "treatment", ]
+
+for (n in ns) {
+  rep_probs <- c()
+  for (r in 1:30) {  # 10 répétitions par n
+    ctrl_n <- ctrl_data[sample(nrow(ctrl_data), n), ]
+    trt_n  <- trt_data[sample(nrow(trt_data), n), ]
+    
+    a_c <- alpha_prior + sum(ctrl_n$converted)
+    b_c <- beta_prior  + n - sum(ctrl_n$converted)
+    a_t <- alpha_prior + sum(trt_n$converted)
+    b_t <- beta_prior  + n - sum(trt_n$converted)
+    
+    s_c <- rbeta(100000, a_c, b_c)
+    s_t <- rbeta(100000, a_t, b_t)
+    rep_probs <- c(rep_probs, mean(s_t > s_c))
+  }
+  probs <- c(probs, mean(rep_probs))
+}
+
+plot(ns, probs, type = "l", col = "steelblue", lwd = 2,
+     main = "P(new page > old page) as n increases",
+     xlab = "Sample size per group", ylab = "P(new > old)")
+abline(h = 0.5, col = "red", lty = 2)
+
+
+# With only 100 observations, P(new > old) = 63.9%, heavily influenced by the prior.
+# As n increases, the prior becomes irrelevant (~n=500) and the probability stabilizes around 0.45-0.50,consistently below or near 0.5, indicating no evidence that the new page outperforms the old one
+# The prior becomes irrelevant relatively early but the conclusion remains the same regardless of prior choice.
+
+
+```
+```{r}
+#Question 4
+str(data2)
+summary(data2)
+colSums(is.na(data2))
+
+hist(data2$LOSdays, breaks = 50, 
+     main = "Distribution of Length of Stay",
+     xlab = "LOSdays", col = "steelblue")
+
+table(data2$gender)
+table(data2$admit_type)
+table(data2$LOSgroupNum)
+
+boxplot(LOSdays ~ LOSgroupNum, data = data2,
+        main = "LOS by Group",
+        xlab = "LOSgroupNum", ylab = "Days",
+        col = "steelblue")
+
+# most patients stay less than 20 days (mean ~10, median ~6.5),
+
+```
+
+
+
+
